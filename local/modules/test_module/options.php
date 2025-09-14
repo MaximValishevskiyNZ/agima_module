@@ -14,12 +14,12 @@ if (!Loader::includeModule($module_id)) {
     return;
 }
 
-//Получаем инфоблоки
+
 $iblockList = [];
 if (Loader::includeModule('iblock')) {
     $res = CIBlock::GetList(
         ['SORT' => 'ASC'],
-        ['ACTIVE' => 'Y'] 
+        ['ACTIVE' => 'Y']
     );
     while ($iblock = $res->Fetch()) {
         $iblockList[$iblock['ID']] = '[' . $iblock['ID'] . '] ' . $iblock['NAME'];
@@ -39,18 +39,18 @@ $aTabs = [
         'TAB'     => Loc::getMessage('MODULE_OPTIONS_TAB_MAIN'),
         'TITLE'   => Loc::getMessage('MODULE_OPTIONS_TAB_MAIN_TITLE'),
         'OPTIONS' => [
-        
+
             [
                 'company_name',
                 Loc::getMessage('MODULE_OPTIONS_COMPANY_NAME'),
                 '',
                 ['text', 50]
             ],
-            
+
             [
                 'company_type',
                 Loc::getMessage('MODULE_OPTIONS_COMPANY_TYPE'),
-                'ООО', 
+                'ООО',
                 [
                     'selectbox',
                     [
@@ -61,16 +61,16 @@ $aTabs = [
                     ]
                 ]
             ],
-          
+
             [
                 'uses_usn',
                 Loc::getMessage('MODULE_OPTIONS_USES_USN'),
-                'Y', 
+                'Y',
                 ['checkbox']
             ],
         ]
     ],
-         [
+    [
         'DIV'     => 'edit2',
         'TAB'     => Loc::getMessage('MODULE_OPTIONS_TAB_INTEGRATION'),
         'TITLE'   => Loc::getMessage('MODULE_OPTIONS_TAB_INTEGRATION_TITLE'),
@@ -78,19 +78,19 @@ $aTabs = [
             [
                 'selected_iblock',
                 Loc::getMessage('MODULE_OPTIONS_SELECTED_IBLOCK'),
-                '', 
+                '',
                 [
                     'selectbox',
-                    $iblockList 
+                    $iblockList
                 ]
             ],
 
-          
+
             [
                 'email_list',
                 Loc::getMessage('MODULE_OPTIONS_EMAIL_LIST'),
-                '', 
-                ['text', 60] 
+                '',
+                ['text', 60]
             ],
         ]
     ]
@@ -103,28 +103,27 @@ $tabControl = new CAdminTabControl('tabControl', $aTabs);
 if ($request->isPost() && check_bitrix_sessid()) {
     foreach ($aTabs as $tab) {
         foreach ($tab['OPTIONS'] as $option) {
-            if (!is_array($option)) continue; 
+            if (!is_array($option)) continue;
             $name = $option[0];
             $postValue = $request->getPost($name);
 
             if ($request['apply'] || $request['save']) {
-                
+
                 if ($option[3][0] === 'checkbox') {
                     $value = ($postValue == 'Y') ? 'Y' : 'N';
                 } else {
                     $value = is_array($postValue) ? implode(',', $postValue) : $postValue;
                 }
                 Option::set($module_id, $name, $value);
-            }
-            elseif ($request['default']) {
-              
+            } elseif ($request['default']) {
+
                 $defaultValue = $option[2];
                 Option::set($module_id, $name, $defaultValue);
             }
         }
     }
 
-    
+
     LocalRedirect($APPLICATION->GetCurPage() . "?mid=" . $module_id . "&lang=" . LANGUAGE_ID . "&back_url_admin=" . urlencode($_REQUEST['back_url_admin']));
 }
 ?>
@@ -143,10 +142,10 @@ if ($request->isPost() && check_bitrix_sessid()) {
     <input type="submit" name="save" value="<?= Loc::getMessage('MAIN_SAVE') ?>" class="adm-btn-save">
     <input type="submit" name="apply" value="<?= Loc::getMessage('MAIN_APPLY') ?>">
     <input type="button" name="cancel" value="<?= Loc::getMessage('MAIN_CANCEL') ?>"
-           onclick="window.location='<?= $_REQUEST['back_url_admin'] ?: '/bitrix/admin/settings.php?lang=' . LANGUAGE_ID ?>'">
+        onclick="window.location='<?= $_REQUEST['back_url_admin'] ?: '/bitrix/admin/settings.php?lang=' . LANGUAGE_ID ?>'">
 
     <input type="submit" name="default" value="<?= Loc::getMessage('MAIN_DEFAULT') ?>"
-           title="<?= Loc::getMessage('MAIN_HINT_DEFAULT') ?>">
+        title="<?= Loc::getMessage('MAIN_HINT_DEFAULT') ?>">
     <input type="hidden" name="back_url_admin" value="<?= htmlspecialcharsbx($_REQUEST['back_url_admin']) ?>">
 
     <?php $tabControl->End(); ?>

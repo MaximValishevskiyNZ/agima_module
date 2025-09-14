@@ -16,7 +16,9 @@ upload/
 .top.menu.php
 404.php
 favicon.ico
-index.php
+./index.php
 urlrewrite.php
 test.php
 /local/log/
+/local/modules/scrollup/
+/local/templates/ex2_type4

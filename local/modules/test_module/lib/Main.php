@@ -12,28 +12,28 @@ class Main
 {
     public static function OnBeforeIBlockElementAddHandler(&$arFields)
     {
-        $logFile = __DIR__ . '/../log/event_handler.log';
-        $logData = date('Y-m-d H:i:s') . " | Вызван обработчик OnBeforeIBlockElementAddHandler\n";
-        $logData .= 'arFields: ' . var_export($arFields, true) . "\n";
+        // $logFile = __DIR__ . '/../log/event_handler.log';
+        // $logData = date('Y-m-d H:i:s') . " | Вызван обработчик OnBeforeIBlockElementAddHandler\n";
+        // $logData .= 'arFields: ' . var_export($arFields, true) . "\n";
         try {
-          
+
             $moduleId = 'test_module';
             $selectedIblock = Option::get($moduleId, 'selected_iblock', '');
             $emailList = Option::get($moduleId, 'email_list', '');
-            $logData .= "selectedIblock: $selectedIblock, emailList: $emailList\n";
+            // $logData .= "selectedIblock: $selectedIblock, emailList: $emailList\n";
 
-            
+
             if (
                 !empty($selectedIblock)
                 && !empty($emailList)
                 && isset($arFields['IBLOCK_ID'])
                 && $arFields['IBLOCK_ID'] == $selectedIblock
             ) {
-                
+
                 $emails = array_filter(array_map('trim', explode(',', $emailList)));
-                $logData .= 'emails: ' . var_export($emails, true) . "\n";
+                // $logData .= 'emails: ' . var_export($emails, true) . "\n";
                 if (!empty($emails)) {
-                  
+
                     $eventResult = Event::send([
                         "EVENT_NAME" => "NEW_IBLOCK_ELEMENT_NOTIFICATION",
                         "LID" => "s1",
@@ -43,17 +43,17 @@ class Main
                             "EMAIL_TO" => implode(',', $emails),
                         ],
                     ]);
-                    $logData .= 'Event::send result: ' . var_export($eventResult, true) . "\n";
+                    // $logData .= 'Event::send result: ' . var_export($eventResult, true) . "\n";
                 } else {
-                    $logData .= "Пустой список email\n";
+                    // $logData .= "Пустой список email\n";
                 }
             } else {
-                $logData .= "Условия для отправки события не выполнены\n";
+                // $logData .= "Условия для отправки события не выполнены\n";
             }
         } catch (\Throwable $e) {
-            $logData .= 'Ошибка: ' . $e->getMessage() . "\n";
+            // $logData .= 'Ошибка: ' . $e->getMessage() . "\n";
         }
-        file_put_contents($logFile, $logData, FILE_APPEND);
+        // file_put_contents($logFile, $logData, FILE_APPEND);
     }
 
     public static function OnAfterIBlockElementAddHandler(&$arFields)
@@ -93,18 +93,18 @@ class Main
                 }
 
                 // Логирование $props
-                $logFile = __DIR__ . '/../log/props_debug.log';
-                $logData = date('Y-m-d H:i:s') . " | props: " . var_export($props, true) . "\n";
-                file_put_contents($logFile, $logData, FILE_APPEND);
+                // $logFile = __DIR__ . '/../log/props_debug.log';
+                // $logData = date('Y-m-d H:i:s') . " | props: " . var_export($props, true) . "\n";
+                // file_put_contents($logFile, $logData, FILE_APPEND);
 
                 // Проверяем запрет учета изменений
-                
+
                 if ($props['DISABLE_CHANGE_TRACKING']['VALUE']) {
                     return;
                 }
             }
 
-            // 1. Инкрементируем EDIT_COUNT
+            // Инкрементируем EDIT_COUNT
             $editCount = 1;
             if (isset($props['EDIT_COUNT']['VALUE']) && is_numeric($props['EDIT_COUNT']['VALUE'])) {
                 $editCount = intval($props['EDIT_COUNT']['VALUE']) + 1;
@@ -114,7 +114,7 @@ class Main
                 'EDIT_COUNT' => $editCount
             ]);
 
-            // 2. Фиксируем изменение в HL-блоке
+            // Фиксируем изменение в HL-блоке
             self::addHLRecord([
                 'UF_DATE' => new \Bitrix\Main\Type\DateTime(),
                 'UF_USER_ID' => $arFields['MODIFIED_BY'] ?? 0,
@@ -123,7 +123,7 @@ class Main
                 'UF_PREVIEW_TEXT' => $arFields['PREVIEW_TEXT'],
             ]);
 
-            // 3. Получаем все изменения из HL-блока
+            // Получаем все изменения из HL-блока
             if (\CModule::IncludeModule('highloadblock')) {
                 $hlblock = HL\HighloadBlockTable::getList([
                     'filter' => ['=NAME' => 'TestEntity']

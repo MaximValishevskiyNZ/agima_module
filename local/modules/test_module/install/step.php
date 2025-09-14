@@ -6,7 +6,6 @@ if (!check_bitrix_sessid()) return;
 
 Loader::includeModule('iblock');
 
-// Получаем список инфоблоков
 $iblockList = [];
 $res = CIBlock::GetList(['SORT' => 'ASC'], ['ACTIVE' => 'Y']);
 while ($iblock = $res->Fetch()) {
