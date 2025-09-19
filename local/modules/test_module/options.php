@@ -101,6 +101,7 @@ $tabControl = new CAdminTabControl('tabControl', $aTabs);
 
 
 if ($request->isPost() && check_bitrix_sessid()) {
+    writeToLog($aTabs);
     foreach ($aTabs as $tab) {
         foreach ($tab['OPTIONS'] as $option) {
             if (!is_array($option)) continue;
@@ -126,6 +127,8 @@ if ($request->isPost() && check_bitrix_sessid()) {
 
     LocalRedirect($APPLICATION->GetCurPage() . "?mid=" . $module_id . "&lang=" . LANGUAGE_ID . "&back_url_admin=" . urlencode($_REQUEST['back_url_admin']));
 }
+
+
 ?>
 
 

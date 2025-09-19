@@ -1,76 +1,70 @@
 <?php
 
-
 namespace Test;
 
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Mail\Event;
 use Bitrix\Highloadblock as HL;
-use Bitrix\Main\Entity;
+use Bitrix\Main\Type\DateTime;
+use Bitrix\Iblock\ElementTable;
+use Bitrix\Iblock\PropertyTable;
+use Bitrix\Iblock\ElementPropertyTable;
 
 class Main
 {
+    public static $oldData;
     public static function OnBeforeIBlockElementAddHandler(&$arFields)
     {
-        // $logFile = __DIR__ . '/../log/event_handler.log';
-        // $logData = date('Y-m-d H:i:s') . " | Вызван обработчик OnBeforeIBlockElementAddHandler\n";
-        // $logData .= 'arFields: ' . var_export($arFields, true) . "\n";
         try {
-
             $moduleId = 'test_module';
             $selectedIblock = Option::get($moduleId, 'selected_iblock', '');
             $emailList = Option::get($moduleId, 'email_list', '');
-            // $logData .= "selectedIblock: $selectedIblock, emailList: $emailList\n";
-
 
             if (
                 !empty($selectedIblock)
                 && !empty($emailList)
                 && isset($arFields['IBLOCK_ID'])
-                && $arFields['IBLOCK_ID'] == $selectedIblock
+                && (int)$arFields['IBLOCK_ID'] === (int)$selectedIblock
             ) {
-
                 $emails = array_filter(array_map('trim', explode(',', $emailList)));
-                // $logData .= 'emails: ' . var_export($emails, true) . "\n";
-                if (!empty($emails)) {
 
-                    $eventResult = Event::send([
+                if (!empty($emails)) {
+                    Event::send([
                         "EVENT_NAME" => "NEW_IBLOCK_ELEMENT_NOTIFICATION",
-                        "LID" => "s1",
-                        "C_FIELDS" => [
-                            "NAME" => $arFields['NAME'],
-                            "PREVIEW_TEXT" => $arFields['PREVIEW_TEXT'],
-                            "EMAIL_TO" => implode(',', $emails),
+                        "LID"        => "s1",
+                        "C_FIELDS"   => [
+                            "NAME"         => $arFields['NAME'] ?? '',
+                            "PREVIEW_TEXT" => $arFields['PREVIEW_TEXT'] ?? '',
+                            "EMAIL_TO"     => implode(',', $emails),
                         ],
                     ]);
-                    // $logData .= 'Event::send result: ' . var_export($eventResult, true) . "\n";
-                } else {
-                    // $logData .= "Пустой список email\n";
                 }
-            } else {
-                // $logData .= "Условия для отправки события не выполнены\n";
             }
         } catch (\Throwable $e) {
-            // $logData .= 'Ошибка: ' . $e->getMessage() . "\n";
+            // логирование по необходимости
         }
-        // file_put_contents($logFile, $logData, FILE_APPEND);
+    }
+
+    public static function OnBeforeIBlockElementUpdateHandler(&$arFields) {
+         self::$oldData = ElementTable::getRowById($arFields['ID']);
     }
 
     public static function OnAfterIBlockElementAddHandler(&$arFields)
     {
         $moduleId = 'test_module';
         $selectedIblock = Option::get($moduleId, 'selected_iblock', '');
+
         if (
             !empty($selectedIblock)
             && isset($arFields['IBLOCK_ID'])
-            && $arFields['IBLOCK_ID'] == $selectedIblock
+            && (int)$arFields['IBLOCK_ID'] === (int)$selectedIblock
         ) {
             self::addHLRecord([
-                'UF_DATE' => new \Bitrix\Main\Type\DateTime(),
-                'UF_USER_ID' => $arFields['MODIFIED_BY'] ?? $arFields['CREATED_BY'] ?? 0,
-                'UF_ELEMENT_ID' => $arFields['ID'],
-                'UF_NAME' => $arFields['NAME'],
-                'UF_PREVIEW_TEXT' => $arFields['PREVIEW_TEXT'],
+                'UF_DATE'        => new DateTime(),
+                'UF_USER_ID'     => $arFields['MODIFIED_BY'] ?? $arFields['CREATED_BY'] ?? 0,
+                'UF_ELEMENT_ID'  => $arFields['ID'],
+                'UF_NAME'        => $arFields['NAME'] ?? '',
+                'UF_PREVIEW_TEXT' => $arFields['PREVIEW_TEXT'] ?? '',
             ]);
         }
     }
@@ -79,83 +73,113 @@ class Main
     {
         $moduleId = 'test_module';
         $selectedIblock = Option::get($moduleId, 'selected_iblock', '');
+
         if (
             !empty($selectedIblock)
             && isset($arFields['IBLOCK_ID'])
-            && $arFields['IBLOCK_ID'] == $selectedIblock
+            && (int)$arFields['IBLOCK_ID'] === (int)$selectedIblock
         ) {
-            // Получаем свойства элемента
-            if (\CModule::IncludeModule('iblock')) {
-                $props = [];
-                $res = \CIBlockElement::GetProperty($arFields['IBLOCK_ID'], $arFields['ID'], [], ['CODE' => false]);
-                while ($prop = $res->Fetch()) {
-                    $props[$prop['CODE']] = $prop;
+           
+            WriteToLog(self::$oldData);
+            $nameChanged = (self::$oldData['NAME'] ?? '') !== ($arFields['NAME'] ?? '');
+            $previewChanged = (self::$oldData['PREVIEW_TEXT'] ?? '') !== ($arFields['PREVIEW_TEXT'] ?? '');
+
+            // Если ни название, ни анонс не изменились — выходим
+            if (!$nameChanged && !$previewChanged) {
+                return;
+            }
+            // Получаем свойства элемента через D7
+            $props = [];
+            $propRes = ElementPropertyTable::getList([
+                'filter' => ['IBLOCK_ELEMENT_ID' => $arFields['ID']],
+                'select' => ['*'],
+            ]);
+
+            while ($prop = $propRes->fetch()) {
+                $props[$prop['IBLOCK_PROPERTY_ID']] = $prop;
+            }
+
+            // Получаем коды свойств (PropertyTable)
+            $codes = [];
+            if (!empty($props)) {
+                $propertyRes = PropertyTable::getList([
+                    'filter' => ['@ID' => array_keys($props)],
+                    'select' => ['ID', 'CODE'],
+                ]);
+                while ($p = $propertyRes->fetch()) {
+                    $codes[$p['ID']] = $p['CODE'];
                 }
+            }
 
-                // Логирование $props
-                // $logFile = __DIR__ . '/../log/props_debug.log';
-                // $logData = date('Y-m-d H:i:s') . " | props: " . var_export($props, true) . "\n";
-                // file_put_contents($logFile, $logData, FILE_APPEND);
-
-                // Проверяем запрет учета изменений
-
-                if ($props['DISABLE_CHANGE_TRACKING']['VALUE']) {
+            // Проверяем запрет учета изменений
+            foreach ($codes as $pid => $code) {
+                if ($code === 'DISABLE_CHANGE_TRACKING' && !empty($props[$pid]['VALUE'])) {
                     return;
                 }
             }
 
             // Инкрементируем EDIT_COUNT
             $editCount = 1;
-            if (isset($props['EDIT_COUNT']['VALUE']) && is_numeric($props['EDIT_COUNT']['VALUE'])) {
-                $editCount = intval($props['EDIT_COUNT']['VALUE']) + 1;
+            foreach ($codes as $pid => $code) {
+                if ($code === 'EDIT_COUNT' && is_numeric($props[$pid]['VALUE'])) {
+                    $editCount = (int)$props[$pid]['VALUE'] + 1;
+                }
             }
-            $el = new \CIBlockElement();
-            $el->SetPropertyValuesEx($arFields['ID'], $arFields['IBLOCK_ID'], [
-                'EDIT_COUNT' => $editCount
-            ]);
+
+            // Записываем свойство EDIT_COUNT
+            \CIBlockElement::SetPropertyValuesEx(
+                $arFields['ID'],
+                $arFields['IBLOCK_ID'],
+                ['EDIT_COUNT' => $editCount]
+            );
 
             // Фиксируем изменение в HL-блоке
             self::addHLRecord([
-                'UF_DATE' => new \Bitrix\Main\Type\DateTime(),
-                'UF_USER_ID' => $arFields['MODIFIED_BY'] ?? 0,
-                'UF_ELEMENT_ID' => $arFields['ID'],
-                'UF_NAME' => $arFields['NAME'],
-                'UF_PREVIEW_TEXT' => $arFields['PREVIEW_TEXT'],
+                'UF_DATE'        => new DateTime(),
+                'UF_USER_ID'     => $arFields['MODIFIED_BY'] ?? 0,
+                'UF_ELEMENT_ID'  => $arFields['ID'],
+                'UF_NAME'        => $arFields['NAME'] ?? '',
+                'UF_PREVIEW_TEXT' => $arFields['PREVIEW_TEXT'] ?? '',
             ]);
 
             // Получаем все изменения из HL-блока
-            if (\CModule::IncludeModule('highloadblock')) {
-                $hlblock = HL\HighloadBlockTable::getList([
-                    'filter' => ['=NAME' => 'TestEntity']
-                ])->fetch();
-                if ($hlblock) {
-                    $entity = HL\HighloadBlockTable::compileEntity($hlblock);
-                    $entityDataClass = $entity->getDataClass();
-                    $rsData = $entityDataClass::getList([
-                        'filter' => ['UF_ELEMENT_ID' => $arFields['ID']],
-                        'order' => ['UF_DATE' => 'ASC'],
-                        'select' => ['UF_DATE']
-                    ]);
-                    $dates = [];
-                    while ($row = $rsData->fetch()) {
-                        if ($row['UF_DATE'] instanceof \Bitrix\Main\Type\DateTime) {
-                            $dates[] = $row['UF_DATE']->getTimestamp();
-                        }
-                    }
-                    if (count($dates) > 1) {
-                        $periods = [];
-                        for ($i = 1; $i < count($dates); $i++) {
-                            $periods[] = $dates[$i] - $dates[$i - 1];
-                        }
-                        $maxPeriod = max($periods);
-                        $avgPeriod = array_sum($periods) / count($periods);
+            $hlblock = HL\HighloadBlockTable::getList([
+                'filter' => ['=NAME' => 'TestEntity']
+            ])->fetch();
 
-                        // Сохраняем значения в свойствах (в секундах)
-                        $el->SetPropertyValuesEx($arFields['ID'], $arFields['IBLOCK_ID'], [
+            if ($hlblock) {
+                $entity = HL\HighloadBlockTable::compileEntity($hlblock);
+                $entityDataClass = $entity->getDataClass();
+                $rsData = $entityDataClass::getList([
+                    'filter' => ['UF_ELEMENT_ID' => $arFields['ID']],
+                    'order'  => ['UF_DATE' => 'ASC'],
+                    'select' => ['UF_DATE']
+                ]);
+
+                $dates = [];
+                while ($row = $rsData->fetch()) {
+                    if ($row['UF_DATE'] instanceof DateTime) {
+                        $dates[] = $row['UF_DATE']->getTimestamp();
+                    }
+                }
+
+                if (count($dates) > 1) {
+                    $periods = [];
+                    for ($i = 1; $i < count($dates); $i++) {
+                        $periods[] = $dates[$i] - $dates[$i - 1];
+                    }
+
+                    $maxPeriod = max($periods);
+                    $avgPeriod = array_sum($periods) / count($periods);
+
+                    \CIBlockElement::SetPropertyValuesEx(
+                        $arFields['ID'],
+                        $arFields['IBLOCK_ID'],
+                        [
                             'MAX_SAVE_DURATION' => $maxPeriod,
                             'AVG_SAVE_DURATION' => (int)$avgPeriod
-                        ]);
-                    }
+                        ]
+                    );
                 }
             }
         }
@@ -163,12 +187,19 @@ class Main
 
     protected static function addHLRecord($fields)
     {
-        if (!\CModule::IncludeModule('highloadblock')) return;
-        $hlblock = HL\HighloadBlockTable::getList([
+        if (!\Bitrix\Main\Loader::includeModule('highloadblock')) {
+            return;
+        }
+
+        $hlblock = \Bitrix\Highloadblock\HighloadBlockTable::getList([
             'filter' => ['=NAME' => 'TestEntity']
         ])->fetch();
-        if (!$hlblock) return;
-        $entity = HL\HighloadBlockTable::compileEntity($hlblock);
+
+        if (!$hlblock) {
+            return;
+        }
+
+        $entity = \Bitrix\Highloadblock\HighloadBlockTable::compileEntity($hlblock);
         $entityDataClass = $entity->getDataClass();
         $entityDataClass::add($fields);
     }

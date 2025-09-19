@@ -31,7 +31,7 @@ class test_module extends CModule
         $step = (int)$_REQUEST['step'];
 
         if ($step < 2) {
-            
+
             $APPLICATION->IncludeAdminFile(
                 "Установка модуля test_module",
                 __DIR__ . "/step.php"
@@ -39,7 +39,7 @@ class test_module extends CModule
             return;
         }
 
-       
+
         $selectedIblock = intval($_REQUEST['selected_iblock']);
         if ($selectedIblock > 0) {
             \Bitrix\Main\Config\Option::set($this->MODULE_ID, 'selected_iblock', $selectedIblock);
@@ -53,7 +53,7 @@ class test_module extends CModule
                     $existingProps[$prop["CODE"]] = true;
                 }
 
-                
+
                 if (!isset($existingProps["EDIT_COUNT"])) {
                     $ibp->Add([
                         "NAME" => "Количество редактирования элемента",
@@ -65,7 +65,7 @@ class test_module extends CModule
                     ]);
                 }
 
-            
+
                 if (!isset($existingProps["MAX_SAVE_DURATION"])) {
                     $ibp->Add([
                         "NAME" => "Максимальная длительность сохранения введенных значений",
@@ -108,12 +108,25 @@ class test_module extends CModule
 
         ModuleManager::registerModule($this->MODULE_ID);
 
+        //Дефолтные значения
+        \Bitrix\Main\Config\Option::set($this->MODULE_ID, 'company_type', 'ООО');
+        \Bitrix\Main\Config\Option::set($this->MODULE_ID, 'uses_usn', 'Y');
+
+
         EventManager::getInstance()->registerEventHandler(
             'iblock',
             'OnBeforeIBlockElementAdd',
             $this->MODULE_ID,
             'Test\\Main',
             'OnBeforeIBlockElementAddHandler'
+        );
+
+        EventManager::getInstance()->registerEventHandler(
+            'iblock',
+            'OnBeforeIBlockElementUpdate',
+            $this->MODULE_ID,
+            'Test\\Main',
+            'OnBeforeIBlockElementUpdateHandler'
         );
 
         EventManager::getInstance()->registerEventHandler(
@@ -142,7 +155,7 @@ class test_module extends CModule
         ])->fetch();
 
         if (!$hlblock) {
-    
+
             $result = HL\HighloadBlockTable::add([
                 'NAME' => $hlblockName,
                 'TABLE_NAME' => $hlblockTableName
@@ -150,10 +163,10 @@ class test_module extends CModule
             if ($result->isSuccess()) {
                 $hlblockId = $result->getId();
 
-             
+
                 $userTypeEntity = new \CUserTypeEntity();
 
-     
+
                 $userTypeEntity->Add([
                     'ENTITY_ID' => 'HLBLOCK_' . $hlblockId,
                     'FIELD_NAME' => 'UF_DATE',
@@ -171,7 +184,7 @@ class test_module extends CModule
                     'LIST_COLUMN_LABEL' => ['ru' => 'Дата/время'],
                     'LIST_FILTER_LABEL' => ['ru' => 'Дата/время'],
                 ]);
-        
+
                 $userTypeEntity->Add([
                     'ENTITY_ID' => 'HLBLOCK_' . $hlblockId,
                     'FIELD_NAME' => 'UF_USER_ID',
@@ -189,7 +202,7 @@ class test_module extends CModule
                     'LIST_COLUMN_LABEL' => ['ru' => 'ID пользователя'],
                     'LIST_FILTER_LABEL' => ['ru' => 'ID пользователя'],
                 ]);
-               
+
                 $userTypeEntity->Add([
                     'ENTITY_ID' => 'HLBLOCK_' . $hlblockId,
                     'FIELD_NAME' => 'UF_ELEMENT_ID',
@@ -207,7 +220,7 @@ class test_module extends CModule
                     'LIST_COLUMN_LABEL' => ['ru' => 'ID элемента'],
                     'LIST_FILTER_LABEL' => ['ru' => 'ID элемента'],
                 ]);
-                
+
                 $userTypeEntity->Add([
                     'ENTITY_ID' => 'HLBLOCK_' . $hlblockId,
                     'FIELD_NAME' => 'UF_NAME',
@@ -225,7 +238,7 @@ class test_module extends CModule
                     'LIST_COLUMN_LABEL' => ['ru' => 'Наименование'],
                     'LIST_FILTER_LABEL' => ['ru' => 'Наименование'],
                 ]);
-                
+
                 $userTypeEntity->Add([
                     'ENTITY_ID' => 'HLBLOCK_' . $hlblockId,
                     'FIELD_NAME' => 'UF_PREVIEW_TEXT',
@@ -245,7 +258,7 @@ class test_module extends CModule
                 ]);
             }
         }
-       
+
         $event = new CEventType;
         $event->Add(array(
             "LID" => "s1",
@@ -280,7 +293,7 @@ class test_module extends CModule
         } else {
             $deleteData = $_REQUEST['delete_data'] === 'Y';
 
-          
+
             \Bitrix\Main\Config\Option::set($this->MODULE_ID, 'hlblock_deleted', $deleteData ? 'Y' : 'N');
 
             if ($deleteData) {
@@ -293,7 +306,7 @@ class test_module extends CModule
                 }
             }
 
-           
+
             $eventMessage = new CEventMessage;
             $res = $eventMessage->GetList(
                 $by = "id",
@@ -304,11 +317,11 @@ class test_module extends CModule
                 $eventMessage->Delete($message["ID"]);
             }
 
-           
+
             $eventType = new CEventType;
             $eventType->Delete("NEW_IBLOCK_ELEMENT_NOTIFICATION");
 
-           
+
             EventManager::getInstance()->unRegisterEventHandler(
                 'iblock',
                 'OnBeforeIBlockElementAdd',
@@ -332,7 +345,14 @@ class test_module extends CModule
                 'OnAfterIBlockElementUpdateHandler'
             );
 
-          
+            EventManager::getInstance()->unRegisterEventHandler(
+                'iblock',
+                'OnBeforeIBlockElementUpdate',
+                $this->MODULE_ID,
+                'Test\\Main',
+                'OnBeforeIBlockElementUpdateHandler'
+            );
+
             ModuleManager::unRegisterModule($this->MODULE_ID);
         }
     }
