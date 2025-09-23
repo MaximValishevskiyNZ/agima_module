@@ -13,11 +13,13 @@ class test_module extends CModule
     {
         if (is_file(__DIR__ . '/version.php')) {
             include_once(__DIR__ . '/version.php');
-            $this->MODULE_ID           = 'test_module';
+            $this->MODULE_ID           = 'partner_code.test_module';
             $this->MODULE_VERSION      = $arModuleVersion['VERSION'];
             $this->MODULE_VERSION_DATE = $arModuleVersion['VERSION_DATE'];
             $this->MODULE_NAME         = "Тестовый модуль";
             $this->MODULE_DESCRIPTION  = "Описание тестового модуля";
+            $this->PARTNER_NAME = "Имя партнера - автора модуля"; 
+            $this->PARTNER_URI = "http://www.mysite.ru";
         } else {
             CAdminMessage::ShowMessage(
                 "version.php не найден"
